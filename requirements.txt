@@ -1,3 +1,4 @@
 playwright>=1.43.0
 flask>=2.2.5
 flask-socketio>=5.3.3
+eventlet>=0.33.3
