@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Messenger Multi-User Panel</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white p-6">
+  <div class="max-w-3xl mx-auto bg-gray-800 p-6 rounded-xl shadow-xl">
+    <h1 class="text-2xl font-bold mb-4 text-center">Messenger Multi-User Panel</h1>
+
+    <form id="botForm" class="space-y-3">
+      <textarea name="cookie" placeholder="Paste your Facebook cookies (JSON)" class="w-full p-2 rounded text-black" required></textarea>
+      <input name="prefix" placeholder="Prefix (e.g. 🔥 BOT:)" class="w-full p-2 rounded text-black" required>
+      <textarea name="targets" placeholder="Enter target IDs (one per line)" class="w-full p-2 rounded text-black" required></textarea>
+      <input type="file" name="messages" accept=".txt" class="w-full bg-gray-700 rounded p-2">
+      <div class="flex space-x-2">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Start</button>
+        <button id="stopBtn" type="button" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">Stop</button>
+      </div>
+    </form>
+
+    <h2 class="text-xl mt-5">Live Logs</h2>
+    <div id="logs" class="mt-2 h-40 overflow-y-auto bg-black p-3 rounded font-mono text-sm"></div>
+  </div>
+
+  <script>
+    const socket = io();
+    const logsDiv = document.getElementById("logs");
+
+    document.getElementById("botForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      await fetch("/start", { method: "POST", body: formData });
+    };
+
+    document.getElementById("stopBtn").onclick = async () => {
+      await fetch("/stop", { method: "POST" });
+    };
+
+    socket.on("log_update", msg => {
+      const lines = logsDiv.innerHTML.split("<br>").filter(l => l.trim());
+      lines.push(msg);
+      if (lines.length > 2) lines.shift();
+      logsDiv.innerHTML = lines.join("<br>");
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    });
+  </script>
+</body>
+</html>
