@@ -4,11 +4,15 @@ import asyncio, threading, json, random
 from collections import deque
 from playwright.async_api import async_playwright
 import uuid
+import eventlet
+
+eventlet.monkey_patch()  # Eventlet patch for async support
 
 app = Flask(__name__)
 app.secret_key = "SUPERSECRET_KEY"
-socketio = SocketIO(app, async_mode="threading")
+socketio = SocketIO(app, async_mode="eventlet")
 
+# User task & logs storage
 user_tasks = {}
 user_logs = {}
 
