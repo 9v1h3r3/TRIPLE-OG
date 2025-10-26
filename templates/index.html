@@ -1,51 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>JERRY E2EE MESSENGER</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-900 text-white p-6">
-  <div class="max-w-3xl mx-auto bg-gray-800 p-6 rounded-xl shadow-xl">
-    <h1 class="text-2xl font-bold mb-4 text-center">Messenger Multi-User Panel</h1>
+<meta charset="UTF-8">
+<title>Messenger Bot Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
 
-    <form id="botForm" class="space-y-3">
-      <textarea name="cookie" placeholder="Paste your Facebook cookies (JSON)" class="w-full p-2 rounded text-black" required></textarea>
-      <input name="prefix" placeholder="Prefix (e.g. 🔥 BOT:)" class="w-full p-2 rounded text-black" required>
-      <textarea name="targets" placeholder="Enter target IDs (one per line)" class="w-full p-2 rounded text-black" required></textarea>
-      <input type="file" name="messages" accept=".txt" class="w-full bg-gray-700 rounded p-2">
-      <div class="flex space-x-2">
-        <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Start</button>
-        <button id="stopBtn" type="button" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">Stop</button>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; overflow-x: hidden; }
+
+  /* Sidebar */
+  .sidebar { 
+    position: fixed; left: 0; top: 0; height: 100vh; width: 220px; 
+    background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(12px); padding: 2rem; 
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1rem;
+    border-right: 1px solid rgba(255,255,255,0.1);
+  }
+  .sidebar h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 2rem; letter-spacing: 1px; }
+  .sidebar button { width: 100%; text-align: left; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; background: rgba(59, 130, 246,0.8); transition: all 0.3s; }
+  .sidebar button:hover { background: rgba(59, 130, 246,1); transform: scale(1.05); }
+
+  /* Main content */
+  .content { margin-left: 240px; padding: 2rem; display: grid; grid-template-columns: repeat(auto-fit,minmax(350px,1fr)); gap: 1.5rem; }
+
+  /* Glassmorphic card */
+  .card {
+    background: rgba(30,41,59,0.6);
+    backdrop-filter: blur(12px);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+
+  input, textarea, select { 
+    background: rgba(51,65,85,0.5); border: none; border-radius: 0.5rem; color: #f8fafc; width: 100%; padding: 0.5rem; margin-top: 0.25rem;
+    backdrop-filter: blur(6px);
+  }
+
+  .btn { background: rgba(59,130,246,0.8); color: white; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 600; transition: all 0.3s; }
+  .btn:hover { background: rgba(59,130,246,1); transform: scale(1.05); }
+  .btn-stop { background: rgba(220,38,38,0.8); }
+  .btn-stop:hover { background: rgba(220,38,38,1); transform: scale(1.05); }
+
+  #logBox {
+    height: 300px; overflow-y: auto; font-family: monospace; 
+    background: rgba(15,23,42,0.5); border-radius: 0.75rem; padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(6px);
+  }
+
+  /* Animations */
+  .fade-in { animation: fadeIn 0.5s ease forwards; opacity: 0; }
+  .fade-out { animation: fadeOut 0.5s ease forwards; }
+  @keyframes fadeIn { from {opacity:0; transform: translateY(-5px);} to {opacity:1; transform: translateY(0);} }
+  @keyframes fadeOut { from {opacity:1; transform: translateY(0);} to {opacity:0; transform: translateY(-10px);} }
+  .log-entry { opacity: 0; transform: translateX(-10px); animation: logFade 0.3s forwards; }
+  @keyframes logFade { to {opacity:1; transform: translateX(0);} }
+
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <h2>💬 Bot Dashboard</h2>
+  <button onclick="scrollToSection('controls')">Controls</button>
+  <button onclick="scrollToSection('targets')">Targets</button>
+  <button onclick="scrollToSection('logs')">Logs</button>
+</div>
+
+<!-- Main Content -->
+<div class="content">
+
+  <!-- Bot Controls Card -->
+  <div id="controls" class="card fade-in">
+    <h3 class="text-xl font-semibold mb-3">⚙️ Bot Controls</h3>
+    <form id="botForm">
+      <label class="block mb-3">
+        <span class="font-semibold">Cookie JSON</span>
+        <textarea name="cookie" rows="4" placeholder='[{"name": "c_user","value": "..."}]' required></textarea>
+      </label>
+      <label class="block mb-3">
+        <span class="font-semibold">Prefix</span>
+        <input type="text" name="prefix" placeholder="[BOT]" required>
+      </label>
+      <label class="block mb-3">
+        <span class="font-semibold">Message File</span>
+        <input type="file" name="messages" accept=".txt" required>
+      </label>
+      <div class="flex gap-3 mt-4">
+        <button type="submit" class="btn flex-1">🚀 Start Bot</button>
+        <button type="button" id="stopBtn" class="btn btn-stop flex-1">🛑 Stop Bot</button>
       </div>
     </form>
-
-    <h2 class="text-xl mt-5">Live Logs</h2>
-    <div id="logs" class="mt-2 h-40 overflow-y-auto bg-black p-3 rounded font-mono text-sm"></div>
   </div>
 
-  <script>
-    const socket = io();
-    const logsDiv = document.getElementById("logs");
+  <!-- Targets Card -->
+  <div id="targets" class="card fade-in">
+    <h3 class="text-xl font-semibold mb-3">🎯 Targets</h3>
+    <div id="targetsContainer">
+      <div class="target-row flex gap-2 mt-2 fade-in">
+        <input type="text" name="targets" placeholder="Thread ID..." class="flex-1">
+        <button type="button" class="btn bg-green-600 add-target">＋</button>
+      </div>
+    </div>
+  </div>
 
-    document.getElementById("botForm").onsubmit = async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      await fetch("/start", { method: "POST", body: formData });
-    };
+  <!-- Logs Card -->
+  <div id="logs" class="card fade-in">
+    <h3 class="text-xl font-semibold mb-3">📡 Live Logs</h3>
+    <div id="logBox"></div>
+  </div>
 
-    document.getElementById("stopBtn").onclick = async () => {
-      await fetch("/stop", { method: "POST" });
-    };
+</div>
 
-    socket.on("log_update", msg => {
-      const lines = logsDiv.innerHTML.split("<br>").filter(l => l.trim());
-      lines.push(msg);
-      if (lines.length > 2) lines.shift();
-      logsDiv.innerHTML = lines.join("<br>");
-      logsDiv.scrollTop = logsDiv.scrollHeight;
-    });
-  </script>
+<script>
+const socket = io();
+const logBox = document.getElementById("logBox");
+const form = document.getElementById("botForm");
+const targetsContainer = document.getElementById("targetsContainer");
+
+// Smooth scroll
+function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+
+// Socket.IO log updates
+socket.on("log_update", msg => {
+  const div = document.createElement("div");
+  div.textContent = msg;
+  div.className = "log-entry";
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
+});
+
+// Dynamic target rows
+targetsContainer.addEventListener("click", (e) => {
+  if (e.target.classList.contains("add-target")) {
+    const row = document.createElement("div");
+    row.className = "target-row flex gap-2 mt-2 fade-in";
+    row.innerHTML = `<input type="text" name="targets" placeholder="Thread ID..." class="flex-1">
+                     <button type="button" class="btn bg-red-600 remove-target">−</button>`;
+    targetsContainer.appendChild(row);
+  } else if (e.target.classList.contains("remove-target")) {
+    const parent = e.target.parentElement;
+    parent.classList.add("fade-out");
+    parent.addEventListener("animationend", () => parent.remove());
+  }
+});
+
+// Start bot
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const formData = new FormData(form);
+  const targets = [...document.querySelectorAll("input[name='targets']")].map(i=>i.value.trim()).filter(v=>v).join("\n");
+  formData.set("targets", targets);
+  try {
+    const res = await axios.post("/start", formData);
+    const div = document.createElement("div");
+    div.textContent = `⚙️ ${res.data}`;
+    div.className = "log-entry";
+    logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+  } catch(err) {
+    const div = document.createElement("div");
+    div.textContent = `❌ ${err.response?.data||err.message}`;
+    div.className = "log-entry text-red-400"; logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+  }
+});
+
+// Stop bot
+document.getElementById("stopBtn").addEventListener("click", async () => {
+  try {
+    const res = await axios.post("/stop");
+    const div = document.createElement("div");
+    div.textContent = `🛑 ${res.data}`;
+    div.className = "log-entry text-yellow-400"; logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+  } catch(err) {
+    const div = document.createElement("div");
+    div.textContent = `❌ ${err.message}`;
+    div.className = "log-entry text-red-400"; logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+  }
+});
+</script>
+
 </body>
 </html>
