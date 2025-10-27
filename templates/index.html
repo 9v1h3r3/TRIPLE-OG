@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Messenger E2EE Bot Dashboard</title>
+  <title>Messenger Bot Dashboard</title>
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     body {
@@ -60,6 +60,25 @@
       white-space: pre-wrap;
       border: 1px solid #eee;
     }
+    .progress-container {
+      width: 100%;
+      background: #f1f1f1;
+      border-radius: 10px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 20px;
+      background: linear-gradient(90deg, #ff69b4, #d63384);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .counter {
+      text-align: right;
+      margin-top: 5px;
+      font-weight: 500;
+      color: #d63384;
+    }
   </style>
 </head>
 <body>
@@ -84,6 +103,11 @@
 
     <button id="stopBtn">⛔ Stop Bot</button>
 
+    <div class="progress-container">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+    <div id="counter" class="counter">0 / 0 messages sent</div>
+
     <h3>📜 Live Logs</h3>
     <div class="log-box" id="logBox"></div>
   </div>
@@ -95,6 +119,13 @@
       const logBox = document.getElementById("logBox");
       logBox.textContent += msg + "\n";
       logBox.scrollTop = logBox.scrollHeight;
+    });
+
+    socket.on("progress_update", data => {
+      const percent = ((data.sent / data.total) * 100).toFixed(1);
+      document.getElementById("progressBar").style.width = percent + "%";
+      document.getElementById("counter").textContent =
+        `${data.sent} / ${data.total} messages sent`;
     });
 
     document.getElementById("botForm").onsubmit = async e => {
