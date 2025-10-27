@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch()  # Must come before any other imports
+eventlet.monkey_patch()  # ✅ Must come before any other import!
 
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit, join_room
@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.secret_key = "SUPERSECRET_KEY"
 socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
 
+# User task & logs storage
 user_tasks = {}
 user_logs = {}
 user_progress = {}
@@ -86,7 +87,6 @@ async def run_bot(user_id, cookie_json, prefix, targets, messages):
                     try:
                         text = f"{prefix} {msg}"
 
-                        # Try multiple possible selectors for message box
                         selectors = [
                             'div[aria-label="Message"]',
                             'div[contenteditable="true"]',
@@ -105,35 +105,19 @@ async def run_bot(user_id, cookie_json, prefix, targets, messages):
                                 continue
 
                         if not input_box:
-                            emit_log(user_id, f"[!] Input box missing for {tid} — refreshing...")
-                            await page.reload()
-                            await asyncio.sleep(6)
+                            emit_log(user_id, f"[!] Input box missing for {tid}")
                             continue
 
-                        # ✅ Paste message instantly
                         await input_box.click()
-                        await page.evaluate("""text => {
-                            const el = document.activeElement;
-                            if (el && el.isContentEditable) {
-                                el.innerText = text;
-                            }
-                        }""", text)
-
-                        # ✅ Safer Enter key (no timeout)
-                        await page.evaluate("""
-                            const el = document.activeElement;
-                            if (el) {
-                                const evt = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', bubbles: true});
-                                el.dispatchEvent(evt);
-                            }
-                        """)
+                        await input_box.type(text)
+                        await input_box.press("Enter")
 
                         sent += 1
                         user_progress[user_id]["sent"] = sent
                         socketio.emit("progress_update", user_progress[user_id], room=user_id)
-                        emit_log(user_id, f"💬 Sent to {tid}: {msg[:60]}...")
 
-                        await asyncio.sleep(random.uniform(5, 10))  # ✅ delay between 5–10s
+                        emit_log(user_id, f"💬 Sent to {tid}: {msg[:60]}...")
+                        await asyncio.sleep(random.uniform(3, 6))
 
                     except asyncio.CancelledError:
                         emit_log(user_id, "⛔ Bot stopped gracefully")
