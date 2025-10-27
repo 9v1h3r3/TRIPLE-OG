@@ -1,4 +1,6 @@
-playwright>=1.43.0
-flask>=2.2.5
-flask-socketio>=5.3.3
-eventlet>=0.33.3
+flask==3.0.3
+flask-socketio==5.3.4
+python-socketio==5.11.3
+python-engineio==4.9.1
+eventlet==0.36.1
+playwright==1.45.0
