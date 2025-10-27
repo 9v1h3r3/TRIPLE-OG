@@ -7,184 +7,219 @@
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
-
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-  body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; overflow-x: hidden; }
-
-  /* Sidebar */
-  .sidebar { 
-    position: fixed; left: 0; top: 0; height: 100vh; width: 220px; 
-    background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(12px); padding: 2rem; 
-    display: flex; flex-direction: column; align-items: flex-start; gap: 1rem;
-    border-right: 1px solid rgba(255,255,255,0.1);
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #a78bfa, #f472b6, #60a5fa);
+    background-size: 300% 300%;
+    animation: gradientMove 10s infinite alternate ease-in-out;
+    color: #111827;
   }
-  .sidebar h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 2rem; letter-spacing: 1px; }
-  .sidebar button { width: 100%; text-align: left; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; background: rgba(59, 130, 246,0.8); transition: all 0.3s; }
-  .sidebar button:hover { background: rgba(59, 130, 246,1); transform: scale(1.05); }
+  @keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
 
-  /* Main content */
-  .content { margin-left: 240px; padding: 2rem; display: grid; grid-template-columns: repeat(auto-fit,minmax(350px,1fr)); gap: 1.5rem; }
-
-  /* Glassmorphic card */
   .card {
-    background: rgba(30,41,59,0.6);
-    backdrop-filter: blur(12px);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: transform 0.3s, box-shadow 0.3s;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 1.2rem;
+    padding: 2rem;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
-  .card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+  .card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
 
-  input, textarea, select { 
-    background: rgba(51,65,85,0.5); border: none; border-radius: 0.5rem; color: #f8fafc; width: 100%; padding: 0.5rem; margin-top: 0.25rem;
-    backdrop-filter: blur(6px);
+  input, textarea {
+    background: rgba(255,255,255,0.9);
+    border-radius: 0.75rem;
+    border: 2px solid transparent;
+    font-size: 1rem;
+    padding: 0.8rem 1rem;
+    width: 90%;
+    transition: 0.3s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 10px rgba(99,102,241,0.3);
   }
 
-  .btn { background: rgba(59,130,246,0.8); color: white; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 600; transition: all 0.3s; }
-  .btn:hover { background: rgba(59,130,246,1); transform: scale(1.05); }
-  .btn-stop { background: rgba(220,38,38,0.8); }
-  .btn-stop:hover { background: rgba(220,38,38,1); transform: scale(1.05); }
+  .btn {
+    background: linear-gradient(90deg, #6366f1, #ec4899);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.8rem 1rem;
+    width: 100%;
+    transition: all 0.3s;
+  }
+  .btn:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(99,102,241,0.4); }
+  .btn-stop { background: linear-gradient(90deg, #ef4444, #f97316); }
+
+  .target-card {
+    background: rgba(255,255,255,0.9);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
 
   #logBox {
-    height: 300px; overflow-y: auto; font-family: monospace; 
-    background: rgba(15,23,42,0.5); border-radius: 0.75rem; padding: 1rem;
-    border: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(6px);
+    height: 320px;
+    overflow-y: auto;
+    font-family: monospace;
+    background: rgba(255,255,255,0.9);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    border: 2px solid rgba(0,0,0,0.05);
   }
 
-  /* Animations */
+  .progress-bar {
+    height: 8px;
+    background: linear-gradient(90deg, #6366f1, #ec4899);
+    border-radius: 999px;
+    transition: width 0.3s ease-in-out;
+  }
+
   .fade-in { animation: fadeIn 0.5s ease forwards; opacity: 0; }
-  .fade-out { animation: fadeOut 0.5s ease forwards; }
-  @keyframes fadeIn { from {opacity:0; transform: translateY(-5px);} to {opacity:1; transform: translateY(0);} }
-  @keyframes fadeOut { from {opacity:1; transform: translateY(0);} to {opacity:0; transform: translateY(-10px);} }
-  .log-entry { opacity: 0; transform: translateX(-10px); animation: logFade 0.3s forwards; }
-  @keyframes logFade { to {opacity:1; transform: translateX(0);} }
+  @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1; transform: translateY(0);} }
 
 </style>
 </head>
-<body>
+<body class="min-h-screen p-6 flex flex-col gap-6">
 
-<!-- Sidebar -->
-<div class="sidebar">
-  <h2>💬 Bot Dashboard</h2>
-  <button onclick="scrollToSection('controls')">Controls</button>
-  <button onclick="scrollToSection('targets')">Targets</button>
-  <button onclick="scrollToSection('logs')">Logs</button>
-</div>
+  <header class="text-center mb-4">
+    <h1 class="text-4xl font-bold text-white drop-shadow-lg">✨ Messenger Bot Dashboard</h1>
+    <p class="text-white/80 mt-2 text-lg">Control. Monitor. Automate.</p>
+  </header>
 
-<!-- Main Content -->
-<div class="content">
+  <main class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-  <!-- Bot Controls Card -->
-  <div id="controls" class="card fade-in">
-    <h3 class="text-xl font-semibold mb-3">⚙️ Bot Controls</h3>
-    <form id="botForm">
-      <label class="block mb-3">
-        <span class="font-semibold">Cookie JSON</span>
-        <textarea name="cookie" rows="4" placeholder='[{"name": "c_user","value": "..."}]' required></textarea>
-      </label>
-      <label class="block mb-3">
-        <span class="font-semibold">Prefix</span>
-        <input type="text" name="prefix" placeholder="[BOT]" required>
-      </label>
-      <label class="block mb-3">
-        <span class="font-semibold">Message File</span>
-        <input type="file" name="messages" accept=".txt" required>
-      </label>
-      <div class="flex gap-3 mt-4">
-        <button type="submit" class="btn flex-1">🚀 Start Bot</button>
-        <button type="button" id="stopBtn" class="btn btn-stop flex-1">🛑 Stop Bot</button>
-      </div>
-    </form>
-  </div>
+    <!-- Control Panel -->
+    <div class="card fade-in">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">⚙️ Bot Controls</h2>
+      <form id="botForm" class="space-y-4">
+        <div>
+          <label class="font-semibold">Cookie JSON</label>
+          <textarea name="cookie" rows="5" placeholder='[{"name": "c_user", "value": "..."}]' required></textarea>
+        </div>
 
-  <!-- Targets Card -->
-  <div id="targets" class="card fade-in">
-    <h3 class="text-xl font-semibold mb-3">🎯 Targets</h3>
-    <div id="targetsContainer">
-      <div class="target-row flex gap-2 mt-2 fade-in">
-        <input type="text" name="targets" placeholder="Thread ID..." class="flex-1">
-        <button type="button" class="btn bg-green-600 add-target">＋</button>
-      </div>
+        <div>
+          <label class="font-semibold">Prefix</label>
+          <input type="text" name="prefix" placeholder="[BOT]" required>
+        </div>
+
+        <div>
+          <label class="font-semibold">Message File</label>
+          <input type="file" name="messages" accept=".txt" required>
+        </div>
+
+        <div id="targetsContainer" class="space-y-3">
+          <label class="font-semibold">🎯 Target Thread IDs</label>
+          <div class="target-card flex items-center gap-2">
+            <input type="text" name="targets" placeholder="Enter thread ID...">
+            <button type="button" class="btn add-target w-20">＋</button>
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-3">
+          <button type="submit" class="btn">🚀 Start Bot</button>
+          <button type="button" id="stopBtn" class="btn btn-stop">🛑 Stop Bot</button>
+        </div>
+      </form>
     </div>
-  </div>
 
-  <!-- Logs Card -->
-  <div id="logs" class="card fade-in">
-    <h3 class="text-xl font-semibold mb-3">📡 Live Logs</h3>
-    <div id="logBox"></div>
-  </div>
+    <!-- Logs & Status -->
+    <div class="card fade-in">
+      <h2 class="text-2xl font-semibold mb-3 text-gray-800">📡 Live Logs & Progress</h2>
+      <div id="targetsStatus" class="mb-4 space-y-2"></div>
+      <div id="logBox"></div>
+    </div>
 
-</div>
+  </main>
 
 <script>
 const socket = io();
 const logBox = document.getElementById("logBox");
-const form = document.getElementById("botForm");
 const targetsContainer = document.getElementById("targetsContainer");
+const targetsStatus = document.getElementById("targetsStatus");
 
-// Smooth scroll
-function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
-
-// Socket.IO log updates
 socket.on("log_update", msg => {
   const div = document.createElement("div");
   div.textContent = msg;
-  div.className = "log-entry";
+  div.className = "fade-in";
   logBox.appendChild(div);
   logBox.scrollTop = logBox.scrollHeight;
 });
 
-// Dynamic target rows
-targetsContainer.addEventListener("click", (e) => {
+targetsContainer.addEventListener("click", e => {
   if (e.target.classList.contains("add-target")) {
-    const row = document.createElement("div");
-    row.className = "target-row flex gap-2 mt-2 fade-in";
-    row.innerHTML = `<input type="text" name="targets" placeholder="Thread ID..." class="flex-1">
-                     <button type="button" class="btn bg-red-600 remove-target">−</button>`;
-    targetsContainer.appendChild(row);
+    const block = document.createElement("div");
+    block.className = "target-card flex items-center gap-2 fade-in";
+    block.innerHTML = `
+      <input type="text" name="targets" placeholder="Enter thread ID...">
+      <button type="button" class="btn bg-red-500 remove-target w-20">−</button>
+    `;
+    targetsContainer.appendChild(block);
   } else if (e.target.classList.contains("remove-target")) {
-    const parent = e.target.parentElement;
-    parent.classList.add("fade-out");
-    parent.addEventListener("animationend", () => parent.remove());
+    e.target.parentElement.remove();
   }
 });
 
-// Start bot
-form.addEventListener("submit", async e => {
+document.getElementById("botForm").addEventListener("submit", async e => {
   e.preventDefault();
+  const form = e.target;
   const formData = new FormData(form);
-  const targets = [...document.querySelectorAll("input[name='targets']")].map(i=>i.value.trim()).filter(v=>v).join("\n");
+  const targets = [...document.querySelectorAll("input[name='targets']")]
+    .map(i => i.value.trim())
+    .filter(v => v)
+    .join("\n");
   formData.set("targets", targets);
   try {
     const res = await axios.post("/start", formData);
-    const div = document.createElement("div");
-    div.textContent = `⚙️ ${res.data}`;
-    div.className = "log-entry";
-    logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
-  } catch(err) {
-    const div = document.createElement("div");
-    div.textContent = `❌ ${err.response?.data||err.message}`;
-    div.className = "log-entry text-red-400"; logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+    addLog(`🚀 ${res.data}`);
+  } catch (err) {
+    addLog(`❌ ${err.response?.data || err.message}`, true);
   }
 });
 
-// Stop bot
 document.getElementById("stopBtn").addEventListener("click", async () => {
   try {
     const res = await axios.post("/stop");
-    const div = document.createElement("div");
-    div.textContent = `🛑 ${res.data}`;
-    div.className = "log-entry text-yellow-400"; logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
-  } catch(err) {
-    const div = document.createElement("div");
-    div.textContent = `❌ ${err.message}`;
-    div.className = "log-entry text-red-400"; logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+    addLog(`🛑 ${res.data}`);
+  } catch (err) {
+    addLog(`❌ ${err.message}`, true);
   }
 });
+
+function addLog(msg, isError=false) {
+  const div = document.createElement("div");
+  div.textContent = msg;
+  div.className = "fade-in";
+  if(isError) div.style.color = "#ef4444";
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+// Mock target progress UI (ready for integration)
+function showTargetProgress(targetId, percent) {
+  let row = document.getElementById("tgt-" + targetId);
+  if(!row) {
+    row = document.createElement("div");
+    row.id = "tgt-" + targetId;
+    row.innerHTML = `
+      <div class="font-semibold">${targetId}</div>
+      <div class="w-full bg-gray-200 rounded-full mt-1">
+        <div class="progress-bar" style="width: ${percent}%;"></div>
+      </div>
+    `;
+    targetsStatus.appendChild(row);
+  } else {
+    row.querySelector(".progress-bar").style.width = percent + "%";
+  }
+}
 </script>
 
 </body>
