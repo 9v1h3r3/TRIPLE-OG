@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch()  # ✅ Must be first line!
+eventlet.monkey_patch()  # ✅ Must come before any other import!
 
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit, join_room
@@ -15,6 +15,7 @@ socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
 # User task & logs storage
 user_tasks = {}
 user_logs = {}
+user_progress = {}
 
 @app.before_request
 def assign_user_id():
@@ -33,14 +34,18 @@ def start():
 
     cookie_json = request.form['cookie']
     prefix = request.form['prefix']
-    targets = request.form['targets'].splitlines()
+    targets = [t.strip() for t in request.form['targets'].splitlines() if t.strip()]
     msg_file = request.files['messages']
-    messages = msg_file.read().decode().splitlines()
+    messages = [m.strip() for m in msg_file.read().decode().splitlines() if m.strip()]
+
+    if not messages or not targets:
+        return "❌ Please provide targets and message file."
 
     loop = asyncio.new_event_loop()
     task = loop.create_task(run_bot(user_id, cookie_json, prefix, targets, messages))
     user_tasks[user_id] = task
-    user_logs[user_id] = deque(maxlen=50)
+    user_logs[user_id] = deque(maxlen=100)
+    user_progress[user_id] = {"sent": 0, "total": len(messages) * len(targets)}
 
     threading.Thread(target=loop.run_until_complete, args=(task,), daemon=True).start()
     return "✅ Bot started successfully!"
@@ -70,29 +75,56 @@ async def run_bot(user_id, cookie_json, prefix, targets, messages):
             await context.add_cookies(cookies)
             page = await context.new_page()
 
+            total = len(messages) * len(targets)
+            sent = 0
+
             for tid in targets:
-                url = f"https://www.facebook.com/messages/e2ee/t/{tid.strip()}"
+                url = f"https://www.facebook.com/messages/e2ee/t/{tid}"
                 await page.goto(url)
                 await asyncio.sleep(5)
 
                 for msg in messages:
                     try:
                         text = f"{prefix} {msg}"
-                        input_box = await page.query_selector('div[role="textbox"]')
+
+                        selectors = [
+                            'div[aria-label="Message"]',
+                            'div[contenteditable="true"]',
+                            'div[role="textbox"]',
+                            'div[aria-label="Type a message..."]'
+                        ]
+
+                        input_box = None
+                        for sel in selectors:
+                            try:
+                                await page.wait_for_selector(sel, timeout=10000)
+                                input_box = await page.query_selector(sel)
+                                if input_box:
+                                    break
+                            except:
+                                continue
+
                         if not input_box:
                             emit_log(user_id, f"[!] Input box missing for {tid}")
                             continue
+
                         await input_box.click()
                         await input_box.type(text)
                         await input_box.press("Enter")
-                        emit_log(user_id, f"💬 Sent to {tid}: {msg[:50]}...")
+
+                        sent += 1
+                        user_progress[user_id]["sent"] = sent
+                        socketio.emit("progress_update", user_progress[user_id], room=user_id)
+
+                        emit_log(user_id, f"💬 Sent to {tid}: {msg[:60]}...")
                         await asyncio.sleep(random.uniform(3, 6))
+
                     except asyncio.CancelledError:
                         emit_log(user_id, "⛔ Bot stopped gracefully")
                         await browser.close()
                         return
                     except Exception as e:
-                        emit_log(user_id, f"[x] Error: {e}")
+                        emit_log(user_id, f"[x] Error while sending to {tid}: {e}")
 
             await browser.close()
             emit_log(user_id, "✅ Finished sending all messages")
@@ -102,7 +134,7 @@ async def run_bot(user_id, cookie_json, prefix, targets, messages):
 
 def emit_log(user_id, msg):
     if user_id not in user_logs:
-        user_logs[user_id] = deque(maxlen=50)
+        user_logs[user_id] = deque(maxlen=100)
     user_logs[user_id].append(msg)
     socketio.emit("log_update", msg, room=user_id)
 
@@ -112,6 +144,8 @@ def handle_connect():
     join_room(user_id)
     for msg in user_logs.get(user_id, []):
         emit("log_update", msg, room=user_id)
+    if user_id in user_progress:
+        emit("progress_update", user_progress[user_id], room=user_id)
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8080)
