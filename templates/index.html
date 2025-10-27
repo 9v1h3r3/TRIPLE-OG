@@ -1,220 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Messenger Bot Dashboard</title>
-  <script src="/socket.io/socket.io.js"></script>
-
+  <meta charset="UTF-8">
+  <title>Messenger E2EE Bot Dashboard</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     body {
+      background: linear-gradient(135deg, #ff9ecd, #fcb3ff);
+      font-family: 'Poppins', sans-serif;
       margin: 0;
-      font-family: "Poppins", sans-serif;
-      background: linear-gradient(135deg, #ff89c9, #ffb3ec, #ff66b3);
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      padding: 40px 10px;
+      padding: 0;
+      color: #333;
     }
-
-    .dashboard {
-      background: #ffffff;
-      width: 100%;
-      max-width: 800px;
+    .container {
+      max-width: 900px;
+      margin: 60px auto;
+      background: white;
       border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-      padding: 30px 40px;
-      animation: fadeIn 0.6s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      padding: 40px;
     }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
     h1 {
       text-align: center;
-      color: #ff4fa8;
-      margin-bottom: 30px;
-      font-size: 28px;
+      color: #d63384;
     }
-
-    label {
-      display: block;
-      font-weight: 600;
-      color: #444;
-      margin-top: 15px;
-      margin-bottom: 6px;
-    }
-
-    textarea, input, button {
-      width: 100%;
-      border: 2px solid #eee;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 15px;
-      font-family: inherit;
-      transition: all 0.2s ease;
-      box-sizing: border-box;
-    }
-
-    textarea:focus, input:focus {
-      outline: none;
-      border-color: #ff66b3;
-      box-shadow: 0 0 4px #ff66b3;
-    }
-
-    button {
-      margin-top: 20px;
-      font-weight: 600;
-      background: linear-gradient(90deg, #ff66b3, #ff4fa8);
-      color: white;
-      cursor: pointer;
-      border: none;
-      transition: 0.3s ease;
-    }
-
-    button:hover {
-      transform: scale(1.02);
-      box-shadow: 0 0 10px rgba(255, 102, 179, 0.6);
-    }
-
-    #stopBtn {
-      background: linear-gradient(90deg, #ff4f4f, #ff7777);
-      margin-top: 10px;
-    }
-
-    .log-section {
-      margin-top: 30px;
-    }
-
-    .log-header {
+    form {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 25px;
     }
-
-    .log-header h2 {
-      color: #ff4fa8;
-      font-size: 22px;
-    }
-
-    #status {
-      background: #ccc;
-      color: #fff;
-      padding: 5px 10px;
-      border-radius: 8px;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: background 0.3s;
-    }
-
-    #status.active {
-      background: #00c851;
-    }
-
-    #status.stopped {
-      background: #ff4444;
-    }
-
-    #logs {
+    textarea, input {
       width: 100%;
-      height: 300px;
-      background: #f7f7f7;
-      border-radius: 10px;
-      border: 2px solid #eee;
-      color: #333;
-      font-family: "Courier New", monospace;
-      font-size: 14px;
       padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 15px;
+    }
+    button {
+      background: #d63384;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #c21874;
+    }
+    .log-box {
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 15px;
+      height: 250px;
       overflow-y: auto;
+      font-family: monospace;
       white-space: pre-wrap;
-      box-sizing: border-box;
-    }
-
-    footer {
-      text-align: center;
-      margin-top: 25px;
-      font-size: 13px;
-      color: #777;
-    }
-
-    footer span {
-      color: #ff4fa8;
-      font-weight: bold;
+      border: 1px solid #eee;
     }
   </style>
 </head>
-
 <body>
-  <div class="dashboard">
-    <h1>💬 Messenger E2EE Bot Dashboard</h1>
+  <div class="container">
+    <h1>💌 Messenger Bot Dashboard</h1>
 
     <form id="botForm">
-      <label>Facebook Cookie JSON:</label>
-      <textarea id="cookie" name="cookie" rows="4" required placeholder='[{"name": "c_user", "value": "..."}]'></textarea>
+      <label>FB Cookie JSON:</label>
+      <textarea name="cookie" rows="4" required></textarea>
 
-      <label>Prefix (optional):</label>
-      <input type="text" id="prefix" name="prefix" placeholder="[BOT]">
+      <label>Message Prefix:</label>
+      <input type="text" name="prefix" placeholder="[Bot]" required>
 
       <label>Target Thread IDs (one per line):</label>
-      <textarea id="targets" name="targets" rows="3" required placeholder="t_1234567890&#10;t_9876543210"></textarea>
+      <textarea name="targets" rows="3" required></textarea>
 
-      <label>Messages File (.txt):</label>
-      <input type="file" id="messages" name="messages" accept=".txt" required>
+      <label>Message File (.txt):</label>
+      <input type="file" name="messages" accept=".txt" required>
 
       <button type="submit">🚀 Start Bot</button>
     </form>
 
     <button id="stopBtn">⛔ Stop Bot</button>
 
-    <div class="log-section">
-      <div class="log-header">
-        <h2>📜 Live Logs</h2>
-        <div id="status" class="stopped">Stopped</div>
-      </div>
-      <div id="logs">Waiting for logs...</div>
-    </div>
-
-    <footer>
-      Made with 💖 by <span>Deep</span>
-    </footer>
+    <h3>📜 Live Logs</h3>
+    <div class="log-box" id="logBox"></div>
   </div>
 
   <script>
     const socket = io();
-    const logBox = document.getElementById("logs");
-    const form = document.getElementById("botForm");
-    const stopBtn = document.getElementById("stopBtn");
-    const statusBox = document.getElementById("status");
 
-    socket.on("log_update", (msg) => {
+    socket.on("log_update", msg => {
+      const logBox = document.getElementById("logBox");
       logBox.textContent += msg + "\n";
       logBox.scrollTop = logBox.scrollHeight;
     });
 
-    form.addEventListener("submit", async (e) => {
+    document.getElementById("botForm").onsubmit = async e => {
       e.preventDefault();
-      statusBox.textContent = "Running";
-      statusBox.className = "active";
-      const formData = new FormData(form);
+      const formData = new FormData(e.target);
       const res = await fetch("/start", { method: "POST", body: formData });
       const text = await res.text();
-      logBox.textContent += `\n[SERVER] ${text}\n`;
-      logBox.scrollTop = logBox.scrollHeight;
-    });
+      alert(text);
+    };
 
-    stopBtn.addEventListener("click", async () => {
-      statusBox.textContent = "Stopping...";
-      statusBox.className = "stopped";
+    document.getElementById("stopBtn").onclick = async () => {
       const res = await fetch("/stop", { method: "POST" });
       const text = await res.text();
-      logBox.textContent += `\n[SERVER] ${text}\n`;
-      logBox.scrollTop = logBox.scrollHeight;
-    });
+      alert(text);
+    };
   </script>
 </body>
 </html>
