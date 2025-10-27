@@ -1,163 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Messenger Bot Dashboard</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     body {
-      background: linear-gradient(135deg, #ffb6c1, #ff69b4);
-      font-family: "Poppins", sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      background: linear-gradient(135deg, #ff9ecd, #fcb3ff);
+      font-family: 'Poppins', sans-serif;
       margin: 0;
+      padding: 0;
       color: #333;
     }
-
     .container {
+      max-width: 900px;
+      margin: 60px auto;
       background: white;
       border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-      width: 90%;
-      max-width: 800px;
-      padding: 30px;
-      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      padding: 40px;
     }
-
     h1 {
-      color: #ff4f81;
-      margin-bottom: 20px;
+      text-align: center;
+      color: #d63384;
     }
-
-    textarea, input[type="text"] {
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    textarea, input {
       width: 100%;
       padding: 10px;
-      margin: 10px 0;
-      border: 1px solid #ccc;
       border-radius: 10px;
+      border: 1px solid #ddd;
       font-size: 15px;
-      outline: none;
-      transition: 0.3s;
     }
-
-    textarea:focus, input:focus {
-      border-color: #ff4f81;
-      box-shadow: 0 0 5px #ff4f81;
-    }
-
-    input[type="file"] {
-      margin: 10px 0;
-    }
-
     button {
-      background: #ff4f81;
+      background: #d63384;
       color: white;
       border: none;
-      padding: 12px 25px;
       border-radius: 10px;
+      padding: 12px;
+      font-size: 16px;
       cursor: pointer;
-      font-size: 15px;
-      transition: 0.3s;
-      margin: 5px;
+      transition: 0.2s;
     }
-
     button:hover {
-      background: #e13d6e;
+      background: #c21874;
     }
-
-    #logBox {
-      background: #f8f8f8;
+    .log-box {
+      background: #f9f9f9;
       border-radius: 10px;
       padding: 15px;
-      height: 200px;
+      height: 250px;
       overflow-y: auto;
-      text-align: left;
-      font-size: 14px;
-      margin-top: 20px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      border: 1px solid #eee;
     }
-
     .progress-container {
-      background: #eee;
+      width: 100%;
+      background: #f1f1f1;
       border-radius: 10px;
+      margin-top: 10px;
       overflow: hidden;
-      margin-top: 20px;
-      height: 20px;
     }
-
     .progress-bar {
-      background: linear-gradient(90deg, #ff4f81, #ff77a9);
+      height: 20px;
+      background: linear-gradient(90deg, #ff69b4, #d63384);
       width: 0%;
-      height: 100%;
-      transition: width 0.3s;
+      transition: width 0.3s ease;
+    }
+    .counter {
+      text-align: right;
+      margin-top: 5px;
+      font-weight: 500;
+      color: #d63384;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>💬 Messenger Bot Dashboard</h1>
+    <h1>💌 Messenger Bot Dashboard</h1>
 
     <form id="botForm">
-      <label>Facebook Cookie (JSON):</label>
-      <textarea name="cookie" rows="3" required></textarea>
+      <label>FB Cookie JSON:</label>
+      <textarea name="cookie" rows="4" required></textarea>
 
       <label>Message Prefix:</label>
-      <input type="text" name="prefix" placeholder="Enter prefix (optional)" />
+      <input type="text" name="prefix" placeholder="[Bot]" required>
 
-      <label>Thread IDs (one per line):</label>
-      <textarea name="targets" rows="3" placeholder="e.g. 1234567890" required></textarea>
+      <label>Target Thread IDs (one per line):</label>
+      <textarea name="targets" rows="3" required></textarea>
 
-      <label>Upload Message File (.txt):</label>
-      <input type="file" name="messages" accept=".txt" required />
+      <label>Message File (.txt):</label>
+      <input type="file" name="messages" accept=".txt" required>
 
-      <div>
-        <button type="submit">🚀 Start Bot</button>
-        <button type="button" id="stopBtn">🛑 Stop Bot</button>
-      </div>
+      <button type="submit">🚀 Start Bot</button>
     </form>
 
-    <div class="progress-container">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
+    <button id="stopBtn">⛔ Stop Bot</button>
 
-    <div id="logBox"></div>
+    <div class="progress-container">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+    <div id="counter" class="counter">0 / 0 messages sent</div>
+
+    <h3>📜 Live Logs</h3>
+    <div class="log-box" id="logBox"></div>
   </div>
 
   <script>
     const socket = io();
-    const logBox = document.getElementById("logBox");
-    const progressBar = document.getElementById("progressBar");
 
-    function addLog(msg) {
-      const line = document.createElement("div");
-      line.textContent = msg;
-      logBox.appendChild(line);
+    socket.on("log_update", msg => {
+      const logBox = document.getElementById("logBox");
+      logBox.textContent += msg + "\n";
       logBox.scrollTop = logBox.scrollHeight;
-    }
-
-    socket.on("log_update", (msg) => addLog(msg));
-
-    socket.on("progress_update", (data) => {
-      const percent = ((data.sent / data.total) * 100).toFixed(1);
-      progressBar.style.width = percent + "%";
     });
 
-    document.getElementById("botForm").addEventListener("submit", async (e) => {
+    socket.on("progress_update", data => {
+      const percent = ((data.sent / data.total) * 100).toFixed(1);
+      document.getElementById("progressBar").style.width = percent + "%";
+      document.getElementById("counter").textContent =
+        `${data.sent} / ${data.total} messages sent`;
+    });
+
+    document.getElementById("botForm").onsubmit = async e => {
       e.preventDefault();
       const formData = new FormData(e.target);
       const res = await fetch("/start", { method: "POST", body: formData });
       const text = await res.text();
-      addLog(text);
-    });
+      alert(text);
+    };
 
-    document.getElementById("stopBtn").addEventListener("click", async () => {
+    document.getElementById("stopBtn").onclick = async () => {
       const res = await fetch("/stop", { method: "POST" });
       const text = await res.text();
-      addLog(text);
-    });
+      alert(text);
+    };
   </script>
 </body>
 </html>
